@@ -1,0 +1,151 @@
+---
+title: "Regression Model for MTCARS Analysis"
+author: "Frank Hasbani"
+date: "Saturday, September 20, 2014"
+output: html_document
+---  
+   
+#### Executive Summary ####
+
+In this project, we analyse a data set of a collection of cars, especially the relationship between a set of variables and miles per gallon. Particularly, following question will be answered by the data set:
+
+- Question1: Is an automatic or manual transmission better for MPG? 
+- Question2: Quantify the MPG difference between automatic and manual transmissions.
+
+We would like to know if automatic is better ou not than manual transmission for MPG. We would like to know how different is the MPG between automatc and manual transmission;
+
+Without considering other variables impact on MPG, the mean mileage of automatic transmission is 17.15 mpg and the manual transmission is 24.39 mpg. 
+
+When considering best fit model for the mtcars, we were able to conclude the Manual Transmission estimated coefficient 2.945 Miles Per Gallon for a given set of all other variables, compared to an Automatic Transmission.
+
+The data was extracted from the 1974 Motor Trend US magazine, and comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973-74 models).
+
+#### Data Discovery ####
+
+
+#### Loading The Data ####
+   
+```{r, echo=FALSE}
+library(datasets)
+library(corrplot)
+library(knitr)
+library(ggplot2) 
+library(stats)
+library(car)
+data(mtcars)
+rawmtcars <- mtcars
+mtcars$am <-  as.factor(mtcars$am)
+str(mtcars)
+summary(mtcars)
+```  
+   
+#### Exploratory Data Analysis ####
+
+mtcars is a data frame with 32 observations on 11 variables. First, using scatter plot matrices to show the data,  
+   
+#### Quantifying Linear Relationship ####
+
+   We mainly focus on the relationship between variables mpg (Miles/(US) gallon) and am (Transmission). Box plot shows that there's a good separation of groups based on gas mileage.
+```{r, echo=FALSE}
+
+levels(mtcars$am) <-c("AT", "MT")
+mpg.at <- mtcars[mtcars$am == "AT",]$mpg
+mpg.mt <- mtcars[mtcars$am == "MT",]$mpg
+t.test(mpg.mt, mpg.at)  
+```  
+#### The first question: ####
+   
+The difference in means is significant in that the mean mileage of automatic transmission is 17.15 mpg and the manual transmission is 24.39 mpg.   At the 95% confidence interval, the difference in gas mileage is between 3.21 and 11.28 mpg.   
+But there are 10 predictor variables in the data set. Some may play bigger role to determination of mpg.   
+   
+#### The Univariate Regression Model ####
+
+Lets examine the strength of significance of the relationship considering there are 9 other variables:  
+- Build the model  
+- Plot the Mileage in relation to Manual vs Automatic Transmissions: SEE APPENDIX: Transmission Box Plot 
+- Examine its Significance  
+   
+```{r, echo=FALSE}
+initmodel <- lm(mpg ~ as.factor(am), data = mtcars)
+summary(initmodel)
+```
+
+#### Conclusion to Question 1 ####
+   
+The difference in means is significant in that the mean mileage of automatic transmission is 17.15 mpg and the manual transmission is 24.39 mpg.  At the 95% confidence interval, the difference in gas mileage is between 3.21 and 11.28 mpg.   
+   
+The p-value is 0.001374, bellow 5%, therefore we reject the Null Hypothesis and accept the Alternative Hypothesis. However with R Square value of 36%, this indicates the Transmission Type can only explain 36% on the change on Mileage. 
+
+Te Confounding Effect of other variables may be significant enough so it is worth investigating. SEE APPENDIX: Correlation Plot
+   
+#### Multivariate Analysis ####
+
+#### The All Inclusive Multivariate Model ####
+   
+   - Build the all inclusive Model   
+   - Analyse the Model   
+   - Apply the results for a decision   
+
+```{r, echo=FALSE}
+# Consider all variables
+allmodel <- lm(mpg ~ ., data = mtcars)
+summary(allmodel)
+```
+
+#### Model Analysis ####  
+Variables with p-value < 0.05 are more important. As are the variables with higher Coefficient Estimates. So for the purpose of eliminating some variables, we select cyl, qsec, wt, and am as predictor variables for next model.
+```{r echo=FALSE}
+nextmodel<- lm(mpg ~ wt + am + cyl + qsec, data = mtcars)
+summary(nextmodel)
+anova(nextmodel)
+```
+#### Stepwise Algorithm Best Model Approach ####
+```{r, results='hide'}
+
+bestmodel <- step(allmodel, direction = "both")
+
+```
+
+#### And The BestModel Is: ####
+```{r }
+
+summary(bestmodel)
+
+anova(bestmodel)
+```
+
+The adjusted r-squared is 0.85 and this is our final model. Clearly, with qsec and weight as confounding variables, the ceofficient of the am variable is small but has a large p-value. We cannot reject the hypothesis that the coefficient of am is 0. The inclusion of cyl in the model improved the r-squared only by 0.1 %, a very insignificant contribution to an axplanatory variable
+
+To diagnostic the bestmodel, we apply the plot() to the object returned by the lm(), SEE APPENDIX: Best Model Plot. First graphic, "Residuals vs. Fitted values" is not quite a straight line, proof of some anomalies. The normal Q-Q plot (upper right) indicates the model met the normality assumption. Scale-Location graph (bottom left) shows constant variance assumption are satisfied.
+
+#### Conclusion To Question 2 ####
+
+Now we can conclude that transmission type weight and number of seconds to quarter mile play important role to determination of mpg.   
+The bestmodel explains 85% of mpg variance and contains only 3 predictors:   
+## The Formulas is: mpg = 9.618 - 3.917 wt(in 1000lbs) + 1.226 X qsec + 2.935 X (ManualTransmission = 1)  
+amMT estimated coefficient equals now to 2.9358 and represents the adjusted estimate for the expected change in mpg comparing AT versus MT for this new model containing 2 other predictors besides am. Manual Transmission estimated coefficient 2.945 Miles Per Gallon is the answer to the second question.   
+
+#### Appendix ####
+
+#### Correlation Plot ####
+
+```{r , echo=FALSE, results='hide'}
+## Correlation Matrix
+col <- colorRampPalette(c("red", "yellow", "green"))
+correlCars<-cor(rawmtcars[sapply(rawmtcars,is.numeric)])
+corrplot(correlCars, order = "alphabet",  tl.cex = 1.3,  tl.col = rgb(0, 0, 0),col = col(20))
+```
+   
+#### Transmission Box Plot ####
+
+```{r, echo=FALSE, results='hide'}
+boxplot(mpg~am,data=mtcars,main="Mileage By Transmission Type",varwidth=TRUE, col=c("green","red"), names=c("Manual","Automatic"));
+
+```   
+#### Best Model Plot  #### 
+
+```{r, echo=FALSE, results='hide'}
+par(mfrow = c(2, 2))
+plot(bestmodel)
+```
+
